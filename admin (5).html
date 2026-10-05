@@ -1,0 +1,48 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Admin - Life Hack Tools</title><link rel="stylesheet" href="style.css"></head><body>
+<header><a class="logo" href="/">Life Hack Tools</a><button class="g" id="out" hidden>Keluar</button></header>
+<main id="app"></main>
+<script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script><script src="common.js"></script>
+<script>
+let C=[],K=[],P=[],tab="p",E=null;
+const opts=(a,v,ph)=>`<option value="">${ph}</option>`+a.map(x=>`<option value="${x.id}" ${x.id===v?"selected":""}>${esc(x.name)}</option>`).join("");
+async function load(){const[a,b,c]=await Promise.all([sb.from("catalogs").select("*").order("name"),sb.from("categories").select("*").order("name"),sb.from("products").select("*").order("created_at",{ascending:false})]);C=a.data||[];K=b.data||[];P=c.data||[];draw()}
+async function run(r,ok){const{error}=await r;if(error)return toast("Gagal: "+error.message);toast(ok);await load()}
+function login(){$("#out").hidden=true;$("#app").innerHTML=`<div class="pan" style="max-width:360px;margin:40px auto"><b>Masuk admin</b><label>Email<input id="em" type="email" autocomplete="username"></label><label>Password<input id="pw" type="password" autocomplete="current-password"></label><button id="go">Masuk</button></div>`}
+function form(){const e=E,ks=K.filter(k=>k.catalog_id===e.catalog_id);
+return `<div class="pan"><b>${e.id?"Edit produk":"Tambah produk"}</b><label>Judul<input data-f="title" value="${esc(e.title)}"></label><label>Deskripsi<textarea data-f="description" rows="4">${esc(e.description)}</textarea></label>
+<div class="fl"><label>Katalog<select data-f="catalog_id" data-r="1">${opts(C,e.catalog_id,"Pilih katalog")}</select></label><label>Kategori<select data-f="category_id">${opts(ks,e.category_id,"Pilih kategori")}</select></label>
+<label>Link affiliate<input data-f="affiliate_url" type="url" placeholder="https://" value="${esc(e.affiliate_url)}"></label><label>Harga (opsional)<input data-f="price" type="number" min="0" value="${esc(e.price)}"></label>
+<label>Link video YouTube (opsional)<input data-f="video_url" type="url" value="${esc(e.video_url)}"></label></div>
+<label>Gambar (unggah)<input id="up" type="file" accept="image/*" multiple></label>
+<div class="mm">${e.images.map((u,i)=>`<div><img src="${esc(u)}" alt=""><button data-rm="${i}" aria-label="Hapus gambar">x</button></div>`).join("")}</div>
+<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-f="active" style="width:auto" ${e.active?"checked":""}>Tampilkan di situs</label>
+<div class="mm"><button id="sv">Simpan produk</button><button class="g" id="cn">Batal</button></div></div>`}
+function draw(){const t=[["p","Produk"],["c","Katalog"],["k","Kategori"]];
+let h=`<div class="chips">${t.map(([k,n])=>`<button class="chip ${tab===k?"on":""}" data-t="${k}">${n}</button>`).join("")}</div>`;
+if(tab==="p"){h+=E?form():`<button id="np">Tambah produk</button>`;h+=`<div class="pan">${P.length?P.map(p=>`<div class="it">${p.images[0]?`<img src="${esc(p.images[0])}" alt="">`:""}<span><b>${esc(p.title)}</b><br><small class="m">${esc(nm(C,p.catalog_id))} / ${esc(nm(K,p.category_id))}${p.active?"":" (draft)"}</small></span><button class="g" data-ed="${p.id}">Edit</button><button class="d" data-dp="${p.id}">Hapus</button></div>`).join(""):`<span class="m">Belum ada produk. Buat katalog dan kategori dulu, lalu tambah produk.</span>`}</div>`}
+if(tab==="c")h+=`<div class="pan"><div class="mm"><input id="nc" placeholder="Nama katalog baru" style="max-width:300px"><button id="ac">Tambah katalog</button></div>${C.map(c=>`<div class="it"><span>${esc(c.name)}</span><button class="g" data-rc="${c.id}">Ubah nama</button><button class="d" data-dc="${c.id}">Hapus</button></div>`).join("")}</div>`;
+if(tab==="k")h+=`<div class="pan"><div class="mm"><select id="nkc" style="max-width:220px">${opts(C,"","Pilih katalog")}</select><input id="nk" placeholder="Nama kategori baru" style="max-width:300px"><button id="ak">Tambah kategori</button></div>${K.map(k=>`<div class="it"><span>${esc(k.name)} <small class="m">di ${esc(nm(C,k.catalog_id))}</small></span><button class="g" data-rk="${k.id}">Ubah nama</button><button class="d" data-dk="${k.id}">Hapus</button></div>`).join("")}</div>`;
+$("#app").innerHTML=h}
+document.addEventListener("click",async e=>{const t=e.target,d=t.dataset;
+if(t.id==="go"){const{error}=await sb.auth.signInWithPassword({email:$("#em").value,password:$("#pw").value});if(error)return toast("Email atau password salah.");return start()}
+if(t.id==="out"){await sb.auth.signOut();return login()}
+if(d.t){tab=d.t;E=null;return draw()}
+if(t.id==="np"){E={catalog_id:"",category_id:"",title:"",description:"",affiliate_url:"",video_url:"",price:"",images:[],active:true};return draw()}
+if(d.ed){E=JSON.parse(JSON.stringify(P.find(p=>p.id===d.ed)));return draw()}
+if(t.id==="cn"){E=null;return draw()}
+if(d.rm){E.images.splice(+d.rm,1);return draw()}
+if(t.id==="sv"){if(!E.title.trim()||!E.catalog_id||!E.category_id||!/^https?:\/\//i.test(E.affiliate_url))return toast("Isi judul, katalog, kategori, dan link affiliate (http/https).");
+const{id,created_at,...row}=E;row.price=row.price?Number(row.price):null;row.video_url=row.video_url||null;
+const r=id?sb.from("products").update(row).eq("id",id):sb.from("products").insert(row);E=null;return run(r,"Produk tersimpan")}
+if(d.dp&&confirm("Hapus produk ini?"))return run(sb.from("products").delete().eq("id",d.dp),"Produk dihapus");
+if(t.id==="ac"&&$("#nc").value.trim())return run(sb.from("catalogs").insert({name:$("#nc").value.trim()}),"Katalog ditambahkan");
+if(t.id==="ak"){if(!$("#nk").value.trim()||!$("#nkc").value)return toast("Pilih katalog dan isi nama kategori.");return run(sb.from("categories").insert({name:$("#nk").value.trim(),catalog_id:$("#nkc").value}),"Kategori ditambahkan")}
+if(d.rc||d.rk){const id=d.rc||d.rk,a=d.rc?C:K,v=prompt("Nama baru:",a.find(x=>x.id===id).name);if(v&&v.trim())return run(sb.from(d.rc?"catalogs":"categories").update({name:v.trim()}).eq("id",id),"Nama diubah")}
+if(d.dc||d.dk){if(!confirm("Hapus item ini?"))return;const{error}=await sb.from(d.dc?"catalogs":"categories").delete().eq("id",d.dc||d.dk);if(error)return toast("Tidak bisa dihapus: masih dipakai produk atau kategori.");toast("Dihapus");load()}});
+document.addEventListener("input",e=>{const t=e.target;if(!t.dataset.f||!E)return;E[t.dataset.f]=t.type==="checkbox"?t.checked:t.value;if(t.dataset.r){E.category_id="";draw()}});
+document.addEventListener("change",async e=>{if(e.target.id!=="up"||!E)return;toast("Mengunggah...");
+for(const f of e.target.files){const p=Date.now()+"-"+f.name.replace(/[^\w.-]/g,"_"),{error}=await sb.storage.from("media").upload(p,f);if(error){toast("Gagal unggah: "+error.message);continue}E.images.push(sb.storage.from("media").getPublicUrl(p).data.publicUrl)}draw()});
+async function start(){const{data}=await sb.auth.getSession();if(!data.session)return login();$("#out").hidden=false;load()}
+start();
+</script></body></html>

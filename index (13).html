@@ -1,0 +1,30 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Life Hack Tools</title><meta name="description" content="Rekomendasi alat kecil yang bikin hidup lebih gampang.">
+<link rel="stylesheet" href="style.css"></head><body>
+<header><a class="logo" href="/">Life Hack Tools</a><input id="q" type="search" placeholder="Cari produk" aria-label="Cari produk"></header>
+<main><h1>Alat kecil yang bikin hidup lebih gampang.</h1><div id="ch"></div><div id="gr"></div></main>
+<footer>Sebagian tautan di situs ini adalah tautan afiliasi. Kami bisa menerima komisi jika Anda membeli lewat tautan tersebut, tanpa biaya tambahan untuk Anda.</footer>
+<dialog id="dg"></dialog>
+<script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script><script src="common.js"></script>
+<script>
+let C=[],K=[],P=[],cat="",sub="",q="";
+const buy=p=>`<a class="btn" href="${esc(safe(p.affiliate_url))}" target="_blank" rel="nofollow sponsored noopener" data-buy="${p.id}">Beli</a>`;
+const ph=p=>`<div class="ph">${esc(p.title.charAt(0).toUpperCase())}</div>`;
+function chips(){const s=K.filter(k=>k.catalog_id===cat);
+$("#ch").innerHTML=`<div class="chips"><button class="chip ${!cat?"on":""}" data-c="">Semua</button>${C.map(c=>`<button class="chip ${cat===c.id?"on":""}" data-c="${c.id}">${esc(c.name)}</button>`).join("")}</div>`+(cat&&s.length?`<div class="chips"><button class="chip ${!sub?"on":""}" data-k="">Semua kategori</button>${s.map(k=>`<button class="chip ${sub===k.id?"on":""}" data-k="${k.id}">${esc(k.name)}</button>`).join("")}</div>`:"")}
+function grid(){const t=q.toLowerCase(),l=P.filter(p=>(!cat||p.catalog_id===cat)&&(!sub||p.category_id===sub)&&(!t||p.title.toLowerCase().includes(t)));
+$("#gr").innerHTML=l.length?`<div class="grid">${l.map(p=>`<article class="card" data-id="${p.id}">${p.images[0]?`<img src="${esc(p.images[0])}" alt="${esc(p.title)}" loading="lazy">`:ph(p)}<div class="cb"><h3>${esc(p.title)}</h3><p class="m">${esc(nm(K,p.category_id))}</p><div class="row"><span class="pr">${rp(p.price)}</span>${buy(p)}</div></div></article>`).join("")}</div>`:`<div class="empty">Belum ada produk di sini. Coba pilih katalog lain atau ubah kata kunci.</div>`}
+function detail(id,i=0){const p=P.find(x=>x.id===id);if(!p)return;const e=yt(p.video_url);
+$("#dg").innerHTML=`<div class="row" style="padding:0"><h2 style="margin:0">${esc(p.title)}</h2><button class="g" id="x">Tutup</button></div>${p.images.length?`<img src="${esc(p.images[i])}" alt="">`:""}${p.images.length>1?`<div class="th">${p.images.map((u,j)=>`<img class="${j===i?"on":""}" src="${esc(u)}" data-p="${id}" data-i="${j}" alt="">`).join("")}</div>`:""}${e?`<iframe src="${e}" allowfullscreen loading="lazy"></iframe>`:p.video_url?`<p><a href="${esc(safe(p.video_url))}" target="_blank" rel="noopener">Tonton video</a></p>`:""}<p class="desc">${esc(p.description)}</p><div class="row"><span class="pr">${rp(p.price)}</span>${buy(p)}</div>`;
+if(!$("#dg").open)$("#dg").showModal()}
+document.addEventListener("click",e=>{const t=e.target;
+if(t.dataset.buy){sb.from("click_logs").insert({product_id:t.dataset.buy}).then(()=>{});return}
+if(t.id==="x"||t===$("#dg"))return $("#dg").close();
+if(t.dataset.p)return detail(t.dataset.p,+t.dataset.i);
+if("c" in t.dataset){cat=t.dataset.c;sub="";chips();return grid()}
+if("k" in t.dataset){sub=t.dataset.k;chips();return grid()}
+const c=t.closest(".card");if(c)detail(c.dataset.id)});
+$("#q").oninput=e=>{q=e.target.value;grid()};
+(async()=>{const[a,b,c]=await Promise.all([sb.from("catalogs").select("*").order("name"),sb.from("categories").select("*").order("name"),sb.from("products").select("*").eq("active",true).order("created_at",{ascending:false})]);
+C=a.data||[];K=b.data||[];P=c.data||[];chips();grid()})();
+</script></body></html>
