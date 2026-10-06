@@ -4,7 +4,7 @@
 <main id="app"></main>
 <script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script><script src="common.js"></script>
 <script>
-let C=[],K=[],P=[],tab="p",E=null,busy=0;
+let C=[],K=[],P=[],tab="p",E=null,busy=0,M=[],U=0,OT=null;
 const opts=(a,v,ph)=>`<option value="">${ph}</option>`+a.map(x=>`<option value="${x.id}" ${x.id===v?"selected":""}>${esc(x.name)}</option>`).join("");
 async function load(){const[a,b,c]=await Promise.all([sb.from("catalogs").select("*").order("name"),sb.from("categories").select("*").order("name"),sb.from("products").select("*").order("created_at",{ascending:false})]);C=a.data||[];K=b.data||[];P=c.data||[];draw()}
 async function run(r,ok){const{error}=await r;if(error)return toast("Gagal: "+error.message);toast(ok);await load()}
@@ -18,15 +18,26 @@ return `<div class="pan"><b>${e.id?"Edit produk":"Tambah produk"}</b><label>Judu
 <div class="mm">${e.images.map((u,i)=>`<div>${isVid(u)?`<video src="${esc(u)}#t=0.1" preload="metadata" muted></video>`:`<img src="${esc(u)}" alt="">`}<button data-rm="${i}" aria-label="Hapus">x</button></div>`).join("")}</div>
 <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-f="active" style="width:auto" ${e.active?"checked":""}>Tampilkan di situs</label>
 <div class="mm"><button id="sv">Simpan produk</button><button class="g" id="cn">Batal</button></div></div>`}
-function draw(){const t=[["p","Produk"],["c","Katalog"],["k","Kategori"]];
+function draw(){const t=[["p","Produk"],["c","Katalog"],["k","Kategori"],["t","Chat"+(U?` (${U})`:"")]];
 let h=`<div class="chips">${t.map(([k,n])=>`<button class="chip ${tab===k?"on":""}" data-t="${k}">${n}</button>`).join("")}</div>`;
-if(tab==="p"){h+=E?form():`<button id="np">Tambah produk</button>`;h+=`<div class="pan">${P.length?P.map(p=>`<div class="it">${p.images.find(u=>!isVid(u))?`<img src="${esc(p.images.find(u=>!isVid(u)))}" alt="">`:""}<span><b>${esc(p.title)}</b><br><small class="m">${esc(nm(C,p.catalog_id))} / ${esc(nm(K,p.category_id))}${p.active?"":" (draft)"}</small></span><button class="g" data-ed="${p.id}">Edit</button><button class="d" data-dp="${p.id}">Hapus</button></div>`).join(""):`<span class="m">Belum ada produk. Buat katalog dan kategori dulu, lalu tambah produk.</span>`}</div>`}
+if(tab==="p"){h+=E?form():`<button id="np">Tambah produk</button>`;h+=`<div class="pan">${P.length?P.map(p=>`<div class="it">${p.images.find(u=>!isVid(u))?`<img src="${esc(p.images.find(u=>!isVid(u)))}" alt="">`:""}<span><b>No.${p.no} - ${esc(p.title)}</b><br><small class="m">${esc(nm(C,p.catalog_id))} / ${esc(nm(K,p.category_id))}${p.active?"":" (draft)"}</small></span><button class="g" data-ed="${p.id}">Edit</button><button class="d" data-dp="${p.id}">Hapus</button></div>`).join(""):`<span class="m">Belum ada produk. Buat katalog dan kategori dulu, lalu tambah produk.</span>`}</div>`}
 if(tab==="c")h+=`<div class="pan"><div class="mm"><input id="nc" placeholder="Nama katalog baru" style="max-width:300px"><button id="ac">Tambah katalog</button></div>${C.map(c=>`<div class="it"><span>${esc(c.name)}</span><button class="g" data-rc="${c.id}">Ubah nama</button><button class="d" data-dc="${c.id}">Hapus</button></div>`).join("")}</div>`;
 if(tab==="k")h+=`<div class="pan"><div class="mm"><select id="nkc" style="max-width:220px">${opts(C,"","Pilih katalog")}</select><input id="nk" placeholder="Nama kategori baru" style="max-width:300px"><button id="ak">Tambah kategori</button></div>${K.map(k=>`<div class="it"><span>${esc(k.name)} <small class="m">di ${esc(nm(C,k.catalog_id))}</small></span><button class="g" data-rk="${k.id}">Ubah nama</button><button class="d" data-dk="${k.id}">Hapus</button></div>`).join("")}</div>`;
-$("#app").innerHTML=h}
+if(tab==="t")h+=`<div class="pan"><div id="cl"></div></div><div class="pan" id="cv" ${OT?"":"hidden"}><div class="row" style="padding:0"><b id="ctt"></b><button class="d" id="cdl">Hapus percakapan</button></div><div id="cm" class="cmsg"></div><div class="cin"><input id="cr" placeholder="Tulis balasan..." maxlength="1000" autocomplete="off"><button id="crs">Kirim</button></div></div>`;
+$("#app").innerHTML=h;if(tab==="t")chatLoad().then(()=>chatPaint(1))}
+const fmt=s=>new Date(s).toLocaleString("id-ID",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+async function chatLoad(){const{data}=await sb.from("chat_messages").select("*").order("id",{ascending:false}).limit(1000);M=data||[];U=new Set(M.filter(x=>x.sender==="user"&&!x.read).map(x=>x.thread_id)).size;const b=document.querySelector('[data-t="t"]');if(b)b.textContent="Chat"+(U?` (${U})`:"")}
+function chatPaint(go){const T=new Map();for(const x of M){if(!T.has(x.thread_id))T.set(x.thread_id,[]);T.get(x.thread_id).push(x)}
+const cl=$("#cl");if(cl)cl.innerHTML=T.size?[...T].map(([id,a])=>{const n=a.filter(x=>x.sender==="user"&&!x.read).length,l=a[0];return `<div class="it" data-th="${id}" style="cursor:pointer"><span><b>Percakapan ${id.slice(0,6)}</b>${n?` <i class="dot"></i> ${n} baru`:""}<br><small class="m">${l.sender==="admin"?"Anda: ":""}${esc(l.body.slice(0,90))} - ${fmt(l.created_at)}</small></span><button class="g" data-th="${id}">Buka</button></div>`}).join(""):'<span class="m">Belum ada pesan masuk.</span>';
+const cm=$("#cm");if(cm&&OT){const a=(T.get(OT)||[]).slice().reverse();$("#ctt").textContent="Percakapan "+OT.slice(0,6);cm.innerHTML=a.map(x=>`<div class="b ${x.sender==="admin"?"out":"in"}">${esc(x.body)}${x.product_no?` <b>(No.${x.product_no})</b>`:""}<small>${fmt(x.created_at)}</small></div>`).join("");if(go||cm.dataset.n!=a.length){cm.scrollTop=cm.scrollHeight}cm.dataset.n=a.length}}
+async function openThread(id){OT=id;await sb.from("chat_messages").update({read:true}).eq("thread_id",id).eq("sender","user").eq("read",false);await chatLoad();$("#cv").hidden=false;chatPaint(1);$("#cr").focus()}
+async function sendReply(){const i=$("#cr"),v=i.value.trim();if(!v||!OT)return;i.value="";const{error}=await sb.from("chat_messages").insert({thread_id:OT,sender:"admin",body:v,read:true});if(error){i.value=v;return toast("Gagal: "+error.message)}await chatLoad();chatPaint(1)}
 document.addEventListener("click",async e=>{const t=e.target,d=t.dataset;
 if(t.id==="go"){const{error}=await sb.auth.signInWithPassword({email:$("#em").value,password:$("#pw").value});if(error)return toast("Email atau password salah.");return start()}
 if(t.id==="out"){await sb.auth.signOut();return login()}
+const th=t.closest("[data-th]");if(th)return openThread(th.dataset.th);
+if(t.id==="crs")return sendReply();
+if(t.id==="cdl"){if(OT&&confirm("Hapus seluruh percakapan ini?")){const{error}=await sb.from("chat_messages").delete().eq("thread_id",OT);if(error)return toast("Gagal: "+error.message);OT=null;$("#cv").hidden=true;await chatLoad();chatPaint()}return}
 if(d.t){tab=d.t;E=null;return draw()}
 if(t.id==="np"){E={catalog_id:"",category_id:"",title:"",description:"",affiliate_url:"",video_url:"",price:"",images:[],active:true};return draw()}
 if(d.ed){E=JSON.parse(JSON.stringify(P.find(p=>p.id===d.ed)));return draw()}
@@ -34,7 +45,7 @@ if(t.id==="dz"||t.closest("#dz"))return $("#up").click();
 if(t.id==="cn"){E=null;return draw()}
 if(d.rm){E.images.splice(+d.rm,1);return draw()}
 if(t.id==="sv"){if(busy)return toast("Tunggu unggahan selesai dulu.");if(!E.title.trim()||!E.catalog_id||!E.category_id||!/^https?:\/\//i.test(E.affiliate_url))return toast("Isi judul, katalog, kategori, dan link affiliate (http/https).");
-const{id,created_at,...row}=E;row.price=row.price?Number(row.price):null;row.video_url=row.video_url||null;
+const{id,created_at,no,...row}=E;row.price=row.price?Number(row.price):null;row.video_url=row.video_url||null;
 const r=id?sb.from("products").update(row).eq("id",id):sb.from("products").insert(row);E=null;return run(r,"Produk tersimpan")}
 if(d.dp&&confirm("Hapus produk ini?"))return run(sb.from("products").delete().eq("id",d.dp),"Produk dihapus");
 if(t.id==="ac"&&$("#nc").value.trim())return run(sb.from("catalogs").insert({name:$("#nc").value.trim()}),"Katalog ditambahkan");
@@ -52,7 +63,7 @@ document.addEventListener("dragover",e=>{if(e.target.closest&&e.target.closest("
 document.addEventListener("dragleave",e=>{const z=$("#dz");if(z)z.classList.remove("over")});
 document.addEventListener("drop",e=>{if(e.target.closest&&e.target.closest("#dz")){e.preventDefault();addFiles(e.dataTransfer.files)}});
 document.addEventListener("paste",e=>{if(!E)return;const fs=[...(e.clipboardData?e.clipboardData.files:[])];if(fs.length){e.preventDefault();addFiles(fs)}});
-document.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.id==="dz"){e.preventDefault();$("#up").click()}});
-async function start(){const{data}=await sb.auth.getSession();if(!data.session)return login();$("#out").hidden=false;load()}
+document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="cr")sendReply();if((e.key==="Enter"||e.key===" ")&&e.target.id==="dz"){e.preventDefault();$("#up").click()}});
+async function start(){const{data}=await sb.auth.getSession();if(!data.session)return login();$("#out").hidden=false;load();chatLoad();if(!window._cp)window._cp=setInterval(async()=>{if(!$("#out").hidden){await chatLoad();if(tab==="t")chatPaint()}},8000)}
 start();
 </script></body></html>
